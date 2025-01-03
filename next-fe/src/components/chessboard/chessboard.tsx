@@ -14,7 +14,7 @@ export const ChessBoard = ({ chess, board, socket, setBoard }: {
     socket: WebSocket
 } ) => {
     const [from, setFrom] = useState<null | Square>(null);
-    return <div className="text-white-200">
+    return <div className="text-white-200 p-12 bg-[#1282a2] rounded-lg">
         {board.map((row, i) =>{
             return <div key={i} className="flex">
                 {row.map((square, j)=>{
@@ -35,17 +35,12 @@ export const ChessBoard = ({ chess, board, socket, setBoard }: {
                             }))
                            //sendTo(squareRepresentation);
                             setFrom(null);
-                            chess.move({
-                                from,
-                                to: squareRepresentation
-                            });
-                            setBoard(chess.board());
                             console.log({
                                 from, 
                                 to: squareRepresentation
                             });
                         }
-                    }} key={j} className={`w-16 h-16 ${(i+j)%2 ===0 ? `bg-green-500` : `bg-white` }`}> 
+                    }} key={j} className={`w-16 h-16 ${(i+j)%2 ===0 ? `bg-[#034078]` : `bg-[#fefcfb]` }`}> 
                         <div className="w-full justify-center flex h-full">
                             <div className="h-full justify-center flex flex-col">
                                 {/* {square ? square.type:""} */}
