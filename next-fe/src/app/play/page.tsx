@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { ChessBoard } from "@/components/chessboard/chessboard";
 import { useSockets } from "@/hooks/useSocket";
 import { useSession } from "next-auth/react";
+import MoveSound from "../../../public/move.wav"
 
 export const INIT_GAME = "init_game";
 export const MOVE = "move";
 export const GAME_OVER = "game_over";
 
 const Game = () => {
+  const moveAudio = new Audio(MoveSound);
   const { data: session } = useSession();
   const socket = useSockets();
   const [chess, setChess] = useState(new Chess());
@@ -33,11 +35,13 @@ const Game = () => {
           setWaiting(false);
           console.log("Game initialized");
           break;
-        case MOVE:
+          case MOVE:
+          moveAudio.play();
           const move = message.payload;
           chess.move(move);
           setBoard(chess.board());
           console.log("Move Made");
+
           break;
         case GAME_OVER:
           console.log("Game over");

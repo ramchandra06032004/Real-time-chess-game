@@ -7,6 +7,7 @@ export class GameManager {
     private games: Game[];
     private pendingUser: { socket: WebSocket, userId: string } | null;
     private users: WebSocket[];
+    public gameIdIntoDb = 0;
 
     constructor() {
         this.games = [];
@@ -32,24 +33,26 @@ export class GameManager {
                 const userId = message.payload.userId;
 
                 if (this.pendingUser) {
-                    // Start a game
-                    const game = new Game(this.pendingUser.socket, socket);
-                    this.games.push(game);
-
+                    
                     // Send API request to save both user IDs into the database
                     const player1Id = this.pendingUser.userId;
                     const player2Id = userId;
-
+                    
                     try {
-                        await axios.post('http://localhost:3000/api/savegame', {
+                        const response = await axios.post('http://localhost:3000/api/savegame', {
                             player1: player1Id,
                             player2: player2Id,
-                            
                         });
+                        this.gameIdIntoDb = response.data.gameId;
+                        console.log(this.gameIdIntoDb);
+                        
                     } catch (error) {
                         console.error('Error saving game:', error);
                     }
-
+                    
+                    // Start a game
+                    const game = new Game(this.pendingUser.socket, socket, this.gameIdIntoDb);
+                    this.games.push(game);
                     this.pendingUser = null;
                 } else {
                     this.pendingUser = { socket, userId };

@@ -22,9 +22,9 @@ const userModel = new Schema({
     default: "user",
     enum: ["user", "admin"],
   },
-  Game: {
-    type: Schema.Types.ObjectId,
-    ref: "Game",
+  Games: {
+    type: [Schema.Types.ObjectId],
+    ref: "Games",
   },
   isGameIncomplete: {
     type: Boolean,

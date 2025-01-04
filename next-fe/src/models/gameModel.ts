@@ -28,6 +28,6 @@ const gameModel=new mongoose.Schema({
 })
 
 
-const Game=(mongoose.models.Game||mongoose.model("Game",gameModel))
+const Game=(mongoose.models.Games||mongoose.model("Games",gameModel))
 
 export default Game;
