@@ -25,7 +25,6 @@ export class GameManager {
         // Stop the Game here as the user has left
     }
 
-
     private addHandler(socket: WebSocket) {
         socket.on("message", async (data) => {
             const message = JSON.parse(data.toString());
@@ -74,7 +73,25 @@ export class GameManager {
                 }
             }
 
-            
+            if (["offer", "answer", "candidate"].includes(message.type)) {
+                const game = this.games.find(game => game.player1 === socket || game.player2 === socket);
+                if (!game) {
+                    console.error("Game not found for socket");
+                    return;
+                }
+                
+                const opponent = game.player1 === socket ? game.player2 : game.player1;
+                if (!opponent || !opponent.send) {
+                    console.error("Opponent socket is invalid");
+                    return;
+                }
+                
+                opponent.send(JSON.stringify({
+                    type: message.type,
+                    payload: message.payload,
+                }));
+                console.log(`Forwarded ${message.type} message to opponent`);
+            }
         });
     }
 }

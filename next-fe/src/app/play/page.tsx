@@ -6,11 +6,14 @@ import { ChessBoard } from "@/components/chessboard/chessboard";
 import { useSockets } from "@/hooks/useSocket";
 import { useSession } from "next-auth/react";
 import MoveSound from "../../../public/move.wav";
+import { io, Socket } from "socket.io-client";
 
 export const INIT_GAME = "init_game";
 export const MOVE = "move";
 export const GAME_OVER = "game_over";
 export const VIDEO_CALL = "video_call";
+
+const URL = "http://localhost:3000";
 
 const Game = () => {
   const moveAudio = new Audio(MoveSound);
@@ -21,11 +24,11 @@ const Game = () => {
   const [started, setStarted] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [color, setColor] = useState("");
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [peerConnection, setPeerConnection] =
-    useState<RTCPeerConnection | null>(null);
+  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
 
   useEffect(() => {
     if (!socket) {
@@ -41,7 +44,6 @@ const Game = () => {
           setStarted(true);
           setWaiting(false);
           console.log("Game initialized");
-          startVideoCall();
           break;
         case MOVE:
           moveAudio.play();
@@ -60,89 +62,71 @@ const Game = () => {
     };
   }, [socket]);
 
-  const startVideoCall = async () => {
-    // Enumerate devices to find the built-in camera
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(
-      (device) => device.kind === "videoinput"
-    );
-    const builtInCamera = videoDevices.find(
-      (device) =>
-        device.label.toLowerCase().includes("integrated") ||
-        device.label.toLowerCase().includes("built-in")
-    );
-
-    // Use the built-in camera if found, otherwise use the default camera
-    const constraints = {
-      video: builtInCamera ? { deviceId: builtInCamera.deviceId } : true,
-      audio: true,
-    };
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    setLocalStream(stream);
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+  const handleVideoCallMessage = async (payload: any) => {
+    const { type, sdp, candidate } = payload;
+    if (type === "offer") {
+      const pc = createPeerConnection();
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket?.send(JSON.stringify({ type: "answer", sdp: answer }));
+    } else if (type === "answer") {
+      await peerConnection?.setRemoteDescription(new RTCSessionDescription(sdp));
+    } else if (type === "candidate") {
+      await peerConnection?.addIceCandidate(new RTCIceCandidate(candidate));
     }
+  };
 
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection();
+    
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket?.send(
-          JSON.stringify({
-            type: VIDEO_CALL,
-            payload: { candidate: event.candidate },
-          })
-        );
-      }
+        if (event.candidate) {
+            socket?.send(JSON.stringify({ type: "candidate", candidate: event.candidate }));
+            console.log("ICE candidate sent:", event.candidate);
+        }
     };
 
     pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
+        setRemoteStream(event.streams[0]);
+        console.log("Remote stream set.");
     };
 
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    pc.oniceconnectionstatechange = () => {
+        console.log(`ICE connection state: ${pc.iceConnectionState}`);
+    };
+
+    if (localStream) {
+        localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+        console.log("Local tracks added to peer connection.");
+    } else {
+        console.warn("No local stream available to add tracks.");
+    }
 
     setPeerConnection(pc);
+    return pc;
+};
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+const startVideoCall = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setLocalStream(stream);
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
+        }
+        console.log("Local stream set.");
 
-    socket?.send(
-      JSON.stringify({
-        type: VIDEO_CALL,
-        payload: { offer },
-      })
-    );
-  };
+        const pc = createPeerConnection();
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        console.log("Local SDP offer created and set.");
 
-  const handleVideoCallMessage = async (message: any) => {
-    if (message.offer) {
-      await peerConnection?.setRemoteDescription(
-        new RTCSessionDescription(message.offer)
-      );
-      const answer = await peerConnection?.createAnswer();
-      await peerConnection?.setLocalDescription(answer);
-      socket?.send(
-        JSON.stringify({
-          type: VIDEO_CALL,
-          payload: { answer },
-        })
-      );
-    } else if (message.answer) {
-      await peerConnection?.setRemoteDescription(
-        new RTCSessionDescription(message.answer)
-      );
-    } else if (message.candidate) {
-      await peerConnection?.addIceCandidate(
-        new RTCIceCandidate(message.candidate)
-      );
+        socket?.send(JSON.stringify({ type: "offer", sdp: offer }));
+        console.log("Offer sent to signaling server.");
+    } catch (error) {
+        console.error("Error starting video call:", error);
     }
-  };
+};
 
   if (!socket) return <div>Connecting ...........</div>;
 
@@ -179,21 +163,17 @@ const Game = () => {
           ) : started ? (
             <>
               <div>your color is {color}</div>
+              <Button onClick={startVideoCall} className="h-14 w-28 text-2xl">
+                Start Video Call
+              </Button>
+              <video ref={localVideoRef} autoPlay playsInline />
+              <video ref={remoteVideoRef} autoPlay playsInline />
             </>
           ) : (
             <>
               <div>Waiting for opponent</div>
             </>
           )}
-        </div>
-        <div className="flex justify-center mt-4">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            className="w-1/2 rounded-xl"
-          />
-          
         </div>
       </div>
     </div>
