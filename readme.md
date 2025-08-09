@@ -20,7 +20,7 @@ This project consists of two independent servers:
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/ramchandra06032004/Real-time-chess-game.git
 cd Real-time-chess-game
 ```
 
@@ -71,7 +71,7 @@ npm run dev
 - Make sure your MongoDB Atlas cluster is running and accessible from your local machine.
 - Update all required secrets in both `.env` files.
 - For production, use `npm run build` and `npm start` (if configured).
-- Email and other third-party services may require additional setup (see `.env.example`).
+- Resend Email service is used for email notifications. Ensure you have configured it properly in the `.env` files.
 
 ---
 
@@ -80,8 +80,4 @@ npm run dev
 - `next-fe/` — Next.js frontend and authentication
 - `ws-backend/` — WebSocket backend for real-time chess logic
 
----
 
-## License
-
-MIT
