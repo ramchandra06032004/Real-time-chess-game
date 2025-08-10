@@ -13,6 +13,7 @@ This project consists of three independent servers:
 - Latest [Node.js](https://nodejs.org/) (LTS or Current)
 - [npm](https://www.npmjs.com/) (comes with Node.js)
 - [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) account (or your own MongoDB instance)
+- [Docker](https://www.docker.com/) (to run RabbitMQ)
 - [RabbitMQ](https://www.rabbitmq.com/) instance (local or cloud-hosted)
 
 ---
@@ -41,7 +42,6 @@ cp .env.example .env
 ```bash
 cd ws-backend
 cp .env.example .env
-# Edit .env and set your MongoDB Atlas URL and other secrets
 ```
 
 #### For RabbitMQ Worker:
@@ -57,7 +57,21 @@ cp .env.example .env
 
 Start the servers one by one in the following order:
 
-### 1. Start the Next.js frontend
+### 1. Start RabbitMQ using Docker
+
+To run the RabbitMQ worker, you need a RabbitMQ instance. You can use the official RabbitMQ Docker image with the management plugin:
+
+```bash
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
+```
+
+- The RabbitMQ server will be available at `http://localhost:15672` (default username: `guest`, password: `guest`).
+- Ports used by RabbitMQ:
+  - `5672`: For RabbitMQ messaging protocol.
+  - `15672`: For RabbitMQ Management UI.
+- Ensure the RabbitMQ connection details in the `.env` file for the RabbitMQ worker are correct.
+
+### 2. Start the Next.js frontend
 ```bash
 cd next-fe
 npm install
@@ -65,7 +79,7 @@ npm run dev
 # By default, runs on http://localhost:3000
 ```
 
-### 2. Start the WebSocket backend
+### 3. Start the WebSocket backend
 ```bash
 cd ws-backend
 npm install
@@ -73,7 +87,7 @@ npm run dev
 # By default, runs on http://localhost:8080 (or check your .env)
 ```
 
-### 3. Start the RabbitMQ Worker
+### 4. Start the RabbitMQ Worker
 ```bash
 cd rabbitMq-worker
 npm install
