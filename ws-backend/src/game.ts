@@ -1,8 +1,8 @@
 import { WebSocket } from "ws";
 import { Chess } from "chess.js";
 import { GAME_OVER, INIT_GAME, MOVE } from "./messageType";
-import axios from "axios";
-
+import { sendMoveToRabbitMQ } from "./rabbitMqProducer";
+import {Move} from './types'
 export class Game {
   public player1: WebSocket;
   public player2: WebSocket;
@@ -63,14 +63,14 @@ export class Game {
     }
     // Save the move to the database
     try {
-      await axios.post('http://localhost:3000/api/saveMove', {
+      const moveObject: Move = {
         from: move.from,
         to: move.to,
         moveNumber: this.moveCount + 1,
-        gameId: this.gameId, // Include the gameId in the request
-      });
-
-      console.log("Move saved successfully");
+        gameId: this.gameId,
+      };
+      await sendMoveToRabbitMQ(moveObject)
+      console.log("Move send to Message broker successfully");
     } catch (error) {
       console.error("Error saving move:");
       return;

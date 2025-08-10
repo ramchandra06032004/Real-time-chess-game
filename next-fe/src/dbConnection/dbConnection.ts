@@ -8,7 +8,9 @@ const dbConnection=async()=>{
             console.log("Database already connected")
             return
         }
+        //console.log("Connecting to database...",process.env.MONGO_URI);
         const responce=await mongoose.connect(process.env.MONGO_URI!)
+        
         console.log("Database connected")
         AllreadyConnected=responce.connections[0].readyState
     } catch (error) {

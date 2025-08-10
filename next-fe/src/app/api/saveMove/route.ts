@@ -16,10 +16,7 @@ export async function POST(request:Request) {
         })
         await move.save();
         const currGame=await Game.findById(gameId);
-        
-        
         if(!currGame){
-            
             return NextResponse.json({
                 message:"Game not found"
             },{
